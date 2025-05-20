@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>재난 지역 및 대피소 지도</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans KR', Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        #left-sidebar {
+            width: 300px;
+            height: 100%;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            padding: 10px;
+            border-right: 1px solid #ddd;
+        }
+        
+        #map-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #right-sidebar {
+            width: 300px;
+            height: 100%;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            padding: 10px;
+            border-left: 1px solid #ddd;
+        }
+        
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #dc3545;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            padding: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .card-body {
+            font-size: 14px;
+        }
+        
+        .danger-card {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .shelter-card {
+            border-left: 4px solid #28a745;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            padding: 20px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .btn-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .icon-info {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .card-action {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        
+        .card-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            color: white;
+        }
+        
+        .tag-danger {
+            background-color: #dc3545;
+        }
+        
+        .tag-war {
+            background-color: #6c757d;
+        }
+        
+        .tag-natural {
+            background-color: #fd7e14;
+        }
+        
+        .tag-shelter {
+            background-color: #28a745;
+        }
+        
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .center-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #delete-modal form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div id="left-sidebar">
+        <div class="sidebar-title">위험 지역 <span id="danger-count" class="badge">(0)</span></div>
+        <div id="danger-list">
+            <!-- 위험 지역 목록이 여기에 동적으로 추가됩니다 -->
+        </div>
+    </div>
+    
+    <div id="map-container">
+        <div class="control-panel">
+            <button id="add-danger" class="btn btn-danger">
+                <i class="fas fa-exclamation-triangle"></i> 위험 지역 추가
+            </button>
+            <button id="add-shelter" class="btn btn-success">
+                <i class="fas fa-home"></i> 대피소 추가
+            </button>
+        </div>
+        <div id="map"></div>
+    </div>
+    
+    <div id="right-sidebar">
+        <div class="sidebar-title">대피소 <span id="shelter-count" class="badge">(0)</span></div>
+        <div id="shelter-list">
+            <!-- 대피소 목록이 여기에 동적으로 추가됩니다 -->
+        </div>
+    </div>
+    
+    <!-- 위험 지역 추가 모달 -->
+    <div id="danger-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">위험 지역 추가</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="danger-form">
+                <div class="form-group">
+                    <label for="danger-type">위험 유형</label>
+                    <select id="danger-type" class="form-control" required>
+                        <option value="">선택하세요</option>
+                        <option value="natural">자연재해</option>
+                        <option value="war">전쟁/내전</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="danger-name">위험 이름</label>
+                    <input type="text" id="danger-name" class="form-control" placeholder="예: 홍수 위험 지역" required>
+                </div>
+                <div class="form-group">
+                    <label for="danger-radius">위험 반경 (미터)</label>
+                    <input type="number" id="danger-radius" class="form-control" placeholder="예: 500" min="100" required>
+                </div>
+                <div class="form-group">
+                    <label for="danger-comment">설명</label>
+                    <textarea id="danger-comment" class="form-control" rows="3" placeholder="위험 지역에 대한 상세 정보를 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="danger-password">개발자 암호</label>
+                    <input type="password" id="danger-password" class="form-control" placeholder="이 마커를 삭제할 때 필요한 암호" required>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn" id="cancel-danger">취소</button>
+                    <button type="submit" class="btn btn-danger">추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 대피소 추가 모달 -->
+    <div id="shelter-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">대피소 추가</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="shelter-form">
+                <div class="form-group">
+                    <label for="shelter-name">대피소 이름</label>
+                    <input type="text" id="shelter-name" class="form-control" placeholder="예: 중앙 대피소" required>
+                </div>
+                <div class="form-group">
+                    <label for="shelter-capacity">수용 인원</label>
+                    <input type="number" id="shelter-capacity" class="form-control" placeholder="예: 100" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="shelter-facilities">시설 정보</label>
+                    <input type="text" id="shelter-facilities" class="form-control" placeholder="예: 식수, 화장실, 의료시설" required>
+                </div>
+                <div class="form-group">
+                    <label for="shelter-comment">설명</label>
+                    <textarea id="shelter-comment" class="form-control" rows="3" placeholder="대피소에 대한 상세 정보를 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="shelter-password">개발자 암호</label>
+                    <input type="password" id="shelter-password" class="form-control" placeholder="이 마커를 삭제할 때 필요한 암호" required>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn" id="cancel-shelter">취소</button>
+                    <button type="submit" class="btn btn-success">추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 마커 삭제 모달 -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">마커 삭제</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="delete-form">
+                <div class="form-group">
+                    <label for="delete-password">개발자 암호</label>
+                    <input type="password" id="delete-password" class="form-control" placeholder="마커 생성 시 입력한 암호" required>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn" id="cancel-delete">취소</button>
+                    <button type="submit" class="btn btn-danger">삭제</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <script>
+        // 전역 변수
+        let map;
+        let markers = [];
+        let circles = [];
+        let currentInfoWindow = null;
+        let selectedPosition = null;
+        let selectedMarker = null;
+        let markerIdToDelete = null;
+        
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            // 로딩 표시
+            showLoading();
+            
+            // 구글 맵 API 로드
+            loadGoogleMapsAPI();
+            
+            // 이벤트 리스너 설정
+            setupEventListeners();
+        });
+        
+        // 구글 맵 API 로드
+        function loadGoogleMapsAPI() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBydatolmaDjbrU13_EKm29qTCZPXjojQI&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+        
+        // 맵 초기화
+        function initMap() {
+            // 기본 위치 (서울)
+            const defaultLocation = { lat: 37.5665, lng: 126.9780 };
+            
+            // 맵 생성
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: defaultLocation,
+                zoom: 12,
+                styles: [
+                    { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+                    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+                    { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+                    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+                    { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
+                    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+                    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+                    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+                    { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+                    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+                    { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+                    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
+                    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+                    { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+                    { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+                    { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+                    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+                    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] }
+                ]
+            });
+            
+            // 지도 클릭 이벤트
+            map.addListener('click', function(event) {
+                // 이전 정보창 닫기
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                }
+                
+                // 현재 위치 저장
+                selectedPosition = event.latLng;
+            });
+            
+            // 데이터 로드
+            loadMarkers();
+        }
+        
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            // 위험 지역 추가 버튼
+            document.getElementById('add-danger').addEventListener('click', function() {
+                if (!selectedPosition) {
+                    alert('지도에서 위치를 먼저 클릭해주세요.');
+                    return;
+                }
+                showModal('danger-modal');
+            });
+            
+            // 대피소 추가 버튼
+            document.getElementById('add-shelter').addEventListener('click', function() {
+                if (!selectedPosition) {
+                    alert('지도에서 위치를 먼저 클릭해주세요.');
+                    return;
+                }
+                showModal('shelter-modal');
+            });
+            
+            // 모달 닫기 버튼들
+            document.querySelectorAll('.close-modal').forEach(button => {
+                button.addEventListener('click', function() {
+                    hideModal(this.closest('.modal').id);
+                });
+            });
+            
+            // 취소 버튼들
+            document.getElementById('cancel-danger').addEventListener('click', function() {
+                hideModal('danger-modal');
+            });
+            
+            document.getElementById('cancel-shelter').addEventListener('click', function() {
+                hideModal('shelter-modal');
+            });
+            
+            document.getElementById('cancel-delete').addEventListener('click', function() {
+                hideModal('delete-modal');
+            });
+            
+            // 폼 제출 이벤트
+            document.getElementById('danger-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addDangerMarker();
+            });
+            
+            document.getElementById('shelter-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addShelterMarker();
+            });
+            
+            document.getElementById('delete-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                deleteMarker();
+            });
+        }
+        
+        // 마커 데이터 로드
+        function loadMarkers() {
+            // MongoDB에서 마커 데이터 가져오기
+            axios.get('/api/markers')
+                .then(response => {
+                    const markers = response.data;
+                    
+                    // 마커 표시
+                    markers.forEach(marker => {
+                        if (marker.type === 'danger') {
+                            createDangerMarker(marker);
+                        } else if (marker.type === 'shelter') {
+                            createShelterMarker(marker);
+                        }
+                    });
+                    
+                    // 카운트 업데이트
+                    updateCounts();
+                    
+                    // 로딩 숨기기
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('마커 로드 오류:', error);
+                    alert('마커 데이터를 불러오는 중 오류가 발생했습니다.');
+                    hideLoading();
+                });
+        }
+        
+        // 위험 지역 마커 추가
+        function addDangerMarker() {
+            const dangerType = document.getElementById('danger-type').value;
+            const dangerName = document.getElementById('danger-name').value;
+            const dangerRadius = parseInt(document.getElementById('danger-radius').value);
+            const dangerComment = document.getElementById('danger-comment').value;
+            const dangerPassword = document.getElementById('danger-password').value;
+            
+            if (!dangerType || !dangerName || !dangerRadius || !dangerPassword) {
+                alert('모든 필수 필드를 입력해주세요.');
+                return;
+            }
+            
+            const dangerData = {
+                type: 'danger',
+                dangerType: dangerType,
+                name: dangerName,
+                position: {
+                    lat: selectedPosition.lat(),
+                    lng: selectedPosition.lng()
+                },
+                radius: dangerRadius,
+                comment: dangerComment,
+                password: dangerPassword
+            };
+            
+            // MongoDB에 저장
+            axios.post('/api/markers', dangerData)
+                .then(response => {
+                    // 응답에서 _id 추가
+                    dangerData._id = response.data._id;
+                    
+                    // 마커 생성
+                    createDangerMarker(dangerData);
+                    
+                    // 모달 숨기기
+                    hideModal('danger-modal');
+                    
+                    // 폼 초기화
+                    document.getElementById('danger-form').reset();
+                    
+                    // 카운트 업데이트
+                    updateCounts();
+                })
+                .catch(error => {
+                    console.error('마커 추가 오류:', error);
+                    alert('마커를 추가하는 중 오류가 발생했습니다.');
+                });
+        }
+        
+        // 대피소 마커 추가
+        function addShelterMarker() {
+            const shelterName = document.getElementById('shelter-name').value;
+            const shelterCapacity = parseInt(document.getElementById('shelter-capacity').value);
+            const shelterFacilities = document.getElementById('shelter-facilities').value;
+            const shelterComment = document.getElementById('shelter-comment').value;
+            const shelterPassword = document.getElementById('shelter-password').value;
+            
+            if (!shelterName || !shelterCapacity || !shelterFacilities || !shelterPassword) {
+                alert('모든 필수 필드를 입력해주세요.');
+                return;
+            }
+            
+            const shelterData = {
+                type: 'shelter',
+                name: shelterName,
+                position: {
+                    lat: selectedPosition.lat(),
+                    lng: selectedPosition.lng()
+                },
+                capacity: shelterCapacity,
+                facilities: shelterFacilities,
+                comment: shelterComment,
+                password: shelterPassword
+            };
+            
+            // MongoDB에 저장
+            axios.post('/api/markers', shelterData)
+                .then(response => {
+                    // 응답에서 _id 추가
+                    shelterData._id = response.data._id;
+                    
+                    // 마커 생성
+                    createShelterMarker(shelterData);
+                    
+                    // 모달 숨기기
+                    hideModal('shelter-modal');
+                    
+                    // 폼 초기화
+                    document.getElementById('shelter-form').reset();
+                    
+                    // 카운트 업데이트
+                    updateCounts();
+                })
+                .catch(error => {
+                    console.error('마커 추가 오류:', error);
+                    alert('마커를 추가하는 중 오류가 발생했습니다.');
+                });
+        }
+        
+        // 위험 지역 마커 생성
+        function createDangerMarker(data) {
+            // 마커 위치
+            const position = new google.maps.LatLng(data.position.lat, data.position.lng);
+            
+            // 마커 이미지 설정
+            const markerIcon = {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#dc3545',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+                scale: 8
+            };
+            
+            // 마커 생성
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                icon: markerIcon,
+                title: data.name
+            });
+            
+            // 원 생성 (위험 반경)
+            const circle = new google.maps.Circle({
+                strokeColor: '#dc3545',
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: '#dc3545',
+                fillOpacity: 0.2,
+                map: map,
+                center: position,
+                radius: data.radius
+            });
+            
+            // 정보창 내용
+            let dangerTypeText;
+            let dangerTypeClass;
+            
+            switch(data.dangerType) {
+                case 'natural':
+                    dangerTypeText = '자연재해';
+                    dangerTypeClass = 'tag-natural';
+                    break;
+                case 'war':
+                    dangerTypeText = '전쟁/내전';
+                    dangerTypeClass = 'tag-war';
+                    break;
+                default:
+                    dangerTypeText = '기타';
+                    dangerTypeClass = 'tag-danger';
+            }
+            
+            const contentString = `
+                <div style="width: 250px; padding: 10px;">
+                    <h3 style="margin-top: 0; margin-bottom: 8px;">${data.name}</h3>
+                    <div>
+                        <span class="card-tag ${dangerTypeClass}">${dangerTypeText}</span>
+                    </div>
+                    <p style="margin-top: 10px; margin-bottom: 5px;">반경: ${data.radius}m</p>
+                    ${data.comment ? `<p style="margin-top: 5px; margin-bottom: 10px;">${data.comment}</p>` : ''}
+                    <button id="delete-marker-${data._id}" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">
+                        마커 삭제
+                    </button>
+                </div>
+            `;
+            
+            // 정보창 생성
+            const infoWindow = new google.maps.InfoWindow({
+                content: contentString
+            });
+            
+            // 마커 클릭 이벤트
+            marker.addListener('click', function() {
+                // 이전 정보창 닫기
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                }
+                
+                // 정보창 열기
+                infoWindow.open(map, marker);
+                currentInfoWindow = infoWindow;
+                
+                // 삭제 버튼 이벤트 추가
+                setTimeout(() => {
+                    const deleteButton = document.getElementById(`delete-marker-${data._id}`);
+                    if (deleteButton) {
+                        deleteButton.addEventListener('click', function() {
+                            markerIdToDelete = data._id;
+                            selectedMarker = marker;
+                            showModal('delete-modal');
+                        });
+                    }
+                }, 100);
+            });
+            
+            // 배열에 추가
+            markers.push({
+                id: data._id,
+                marker: marker,
+                circle: circle,
+                type: 'danger',
+                data: data
+            });
+            
+            // 사이드바에 추가
+            addDangerToSidebar(data);
+        }
+        
+        // 대피소 마커 생성
+        function createShelterMarker(data) {
+            // 마커 위치
+            const position = new google.maps.LatLng(data.position.lat, data.position.lng);
+            
+            // 마커 이미지 설정
+            const markerIcon = {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#28a745',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+                scale: 8
+            };
+            
+            // 마커 생성
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                icon: markerIcon,
+                title: data.name
+            });
+            
+            // 정보창 내용
+            const contentString = `
+                <div style="width: 250px; padding: 10px;">
+                    <h3 style="margin-top: 0; margin-bottom: 8px;">${data.name}</h3>
+                    <div>
+                        <span class="card-tag tag-shelter">대피소</span>
+                    </div>
+                    <p style="margin-top: 10px; margin-bottom: 5px;">수용 인원: ${data.capacity}명</p>
+                    <p style="margin-top: 5px; margin-bottom: 5px;">시설: ${data.facilities}</p>
+                    ${data.comment ? `<p style="margin-top: 5px; margin-bottom: 10px;">${data.comment}</p>` : ''}
+                    <button id="delete-marker-${data._id}" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">
+                        마커 삭제
+                    </button>
+                </div>
+            `;
+            
+            // 정보창 생성
+            const infoWindow = new google.maps.InfoWindow({
+                content: contentString
+            });
+            
+            // 마커 클릭 이벤트
+            marker.addListener('click', function() {
+                // 이전 정보창 닫기
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                }
+                
+                // 정보창 열기
+                infoWindow.open(map, marker);
+                currentInfoWindow = infoWindow;
+                
+                // 삭제 버튼 이벤트 추가
+                setTimeout(() => {
+                    const deleteButton = document.getElementById(`delete-marker-${data._id}`);
+                    if (deleteButton) {
+                        deleteButton.addEventListener('click', function() {
+                            markerIdToDelete = data._id;
+                            selectedMarker = marker;
+                            showModal('delete-modal');
+                        });
+                    }
+                }, 100);
+            });
+            
+            // 배열에 추가
+            markers.push({
+                id: data._id,
+                marker: marker,
+                type: 'shelter',
+                data: data
+            });
+            
+            // 사이드바에 추가
+            addShelterToSidebar(data);
+        }
+        
+        // 위험 지역을 사이드바에 추가
+        function addDangerToSidebar(data) {
+            const dangerList = document.getElementById('danger-list');
+            
+            let dangerTypeText;
+            let dangerTypeClass;
+            
+            switch(data.dangerType) {
+                case 'natural':
+                    dangerTypeText = '자연재해';
+                    dangerTypeClass = 'tag-natural';
+                    break;
+                case 'war':
+                    dangerTypeText = '전쟁/내전';
+                    dangerTypeClass = 'tag-war';
+                    break;
+                default:
+                    dangerTypeText = '기타';
+                    dangerTypeClass = 'tag-danger';
+            }
+            
+            const dangerCard = document.createElement('div');
+            dangerCard.className = 'card danger-card';
+            dangerCard.id = `danger-card-${data._id}`;
+            dangerCard.innerHTML = `
+                <div class="card-title">
+                    ${data.name}
+                    <span class="card-tag ${dangerTypeClass}">${dangerTypeText}</span>
+                </div>
+                <div class="card-body">
+                    <p>반경: ${data.radius}m</p>
+                    ${data.comment ? `<p>${data.comment}</p>` : ''}
+                </div>
+                <div class="card-action">
+                    <button class="btn btn-primary view-on-map" data-id="${data._id}">
+                        <i class="fas fa-map-marker-alt"></i> 지도에서 보기
+                    </button>
+                </div>
+            `;
+            
+            dangerList.appendChild(dangerCard);
+            
+            // 지도에서 보기 버튼 이벤트
+            dangerCard.querySelector('.view-on-map').addEventListener('click', function() {
+                const markerId = this.getAttribute('data-id');
+                const markerData = markers.find(m => m.id === markerId);
+                
+                if (markerData) {
+                    // 지도 중심 이동
+                    map.setCenter(markerData.marker.getPosition());
+                    map.setZoom(15);
+                    
+                    // 정보창 열기
+                    google.maps.event.trigger(markerData.marker, 'click');
+                }
+            });
+        }
+        
+        // 대피소를 사이드바에 추가
+        function addShelterToSidebar(data) {
+            const shelterList = document.getElementById('shelter-list');
+            
+            const shelterCard = document.createElement('div');
+            shelterCard.className = 'card shelter-card';
+            shelterCard.id = `shelter-card-${data._id}`;
+            shelterCard.innerHTML = `
+                <div class="card-title">
+                    ${data.name}
+                    <span class="card-tag tag-shelter">대피소</span>
+                </div>
+                <div class="card-body">
+                    <p>수용 인원: ${data.capacity}명</p>
+                    <p>시설: ${data.facilities}</p>
+                    ${data.comment ? `<p>${data.comment}</p>` : ''}
+                </div>
+                <div class="card-action">
+                    <button class="btn btn-primary view-on-map" data-id="${data._id}">
+                        <i class="fas fa-map-marker-alt"></i> 지도에서 보기
+                    </button>
+                </div>
+            `;
+            
+            shelterList.appendChild(shelterCard);
+            
+            // 지도에서 보기 버튼 이벤트
+            shelterCard.querySelector('.view-on-map').addEventListener('click', function() {
+                const markerId = this.getAttribute('data-id');
+                const markerData = markers.find(m => m.id === markerId);
+                
+                if (markerData) {
+                    // 지도 중심 이동
+                    map.setCenter(markerData.marker.getPosition());
+                    map.setZoom(15);
+                    
+                    // 정보창 열기
+                    google.maps.event.trigger(markerData.marker, 'click');
+                }
+            });
+        }
+        
+        // 마커 삭제
+        function deleteMarker() {
+            if (!markerIdToDelete) {
+                alert('삭제할 마커가 선택되지 않았습니다.');
+                return;
+            }
+            
+            const password = document.getElementById('delete-password').value;
+            
+            // MongoDB에서 마커 삭제
+            axios.delete(`/api/markers/${markerIdToDelete}`, { data: { password: password } })
+                .then(response => {
+                    // 마커 정보 찾기
+                    const markerIndex = markers.findIndex(m => m.id === markerIdToDelete);
+                    
+                    if (markerIndex !== -1) {
+                        const markerInfo = markers[markerIndex];
+                        
+                        // 지도에서 마커 제거
+                        markerInfo.marker.setMap(null);
+                        
+                        // 원 제거 (위험 지역인 경우)
+                        if (markerInfo.circle) {
+                            markerInfo.circle.setMap(null);
+                        }
+                        
+                        // 사이드바에서 제거
+                        if (markerInfo.type === 'danger') {
+                            const dangerCard = document.getElementById(`danger-card-${markerIdToDelete}`);
+                            if (dangerCard) {
+                                dangerCard.remove();
+                            }
+                        } else if (markerInfo.type === 'shelter') {
+                            const shelterCard = document.getElementById(`shelter-card-${markerIdToDelete}`);
+                            if (shelterCard) {
+                                shelterCard.remove();
+                            }
+                        }
+                        
+                        // 배열에서 제거
+                        markers.splice(markerIndex, 1);
+                        
+                        // 정보창 닫기
+                        if (currentInfoWindow) {
+                            currentInfoWindow.close();
+                            currentInfoWindow = null;
+                        }
+                        
+                        // 카운트 업데이트
+                        updateCounts();
+                    }
+                    
+                    // 모달 숨기기
+                    hideModal('delete-modal');
+                    
+                    // 폼 초기화
+                    document.getElementById('delete-form').reset();
+                    
+                    // 삭제할 마커 ID 초기화
+                    markerIdToDelete = null;
+                    selectedMarker = null;
+                })
+                .catch(error => {
+                    console.error('마커 삭제 오류:', error);
+                    if (error.response && error.response.status === 403) {
+                        alert('잘못된 암호입니다. 다시 시도해주세요.');
+                    } else {
+                        alert('마커를 삭제하는 중 오류가 발생했습니다.');
+                    }
+                });
+        }
+        
+        // 카운트 업데이트
+        function updateCounts() {
+            const dangerCount = markers.filter(m => m.type === 'danger').length;
+            const shelterCount = markers.filter(m => m.type === 'shelter').length;
+            
+            document.getElementById('danger-count').textContent = `(${dangerCount})`;
+            document.getElementById('shelter-count').textContent = `(${shelterCount})`;
+        }
+        
+        // 모달 표시
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'flex';
+        }
+        
+        // 모달 숨기기
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'none';
+        }
+        
+        // 로딩 표시
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+        
+        // 로딩 숨기기
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
